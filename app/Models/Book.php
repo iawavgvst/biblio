@@ -35,8 +35,9 @@ class Book extends Model
     {
         return [
             'is18Plus' => 'boolean',
-            'average_rating' => 'float',
-            'ratings_count' => 'integer',
+            'average_rating' => 'decimal:2',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
     }
 
@@ -61,49 +62,44 @@ class Book extends Model
     }
 
     /**
-     * Получить средний рейтинг книги
+     * Показывает оценку (рейтинг), которую поставил текущий пользователь
      *
-     * @return float
+     * @param int|string $userId
+     * @return BookRating|null
      */
-    public function getCalculatedAverageRatingAttribute(): float
+    public function userRating($userId): ?BookRating
     {
-        // Если уже загружено через withAvg
-        if (isset($this->attributes['ratings_avg_rating'])) {
-            return (float) $this->attributes['ratings_avg_rating'];
-        }
-
-        // Иначе вычисляем на лету
-        return $this->ratings()->avg('rating') ?? 0;
+        return $this->ratings()
+            ->where('user_id', $userId)
+            ->first();
     }
 
     /**
-     * Получить количество оценок (рейтинг)
+     * Проверка, проголосовал ли текущий пользователь
      *
-     * @return int
+     * @param $userId
+     * @return bool
      */
-    public function getCalculatedRatingsCountAttribute(): int
+    public function hasUserRated($userId): bool
     {
-        if (isset($this->attributes['ratings_count'])) {
-            return (int) $this->attributes['ratings_count'];
-        }
-
-        return $this->ratings()->count();
+        return $this->ratings()
+            ->where('user_id', $userId)
+            ->exists();
     }
 
     /**
-     * Обновить статистику рейтингов
+     * Среднее значение рейтинга (исходя из всех оценок))
      *
      * @return void
      */
-    public function updateRatingStats(): void
+    public function updateAverageRating(): void
     {
-        $stats = $this->ratings()
-            ->selectRaw('AVG(rating) as avg_rating, COUNT(*) as count')
-            ->first();
+        $average = $this->ratings()->avg('rating');
+        $count = $this->ratings()->count();
 
         $this->update([
-            'average_rating' => $stats->avg_rating ?? 0,
-            'ratings_count' => $stats->count ?? 0
+            'average_rating' => $average ?? 0,
+            'ratings_count' => $count,
         ]);
     }
 }
