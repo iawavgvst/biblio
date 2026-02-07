@@ -10,15 +10,25 @@
                     <Link href="/about" class="nav-link">
                         About Us
                     </Link>
-                    <Link href="/dashboard" class="nav-link">
-                        Dashboard
-                    </Link>
                     <Link href="/profile" class="nav-link">
                         Profile
                     </Link>
                     <Link href="/scroll-page" class="nav-link">
                         Scroll Page
                     </Link>
+                    <template v-if="!$page.props.auth?.user">
+                        <Link href="/register" class="nav-link">
+                            Register
+                        </Link>
+                        <Link href="/login" class="nav-link">
+                            Login
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <form @submit.prevent="logout" class="logout-form">
+                            <button type="submit" class="logout-button">Выйти</button>
+                        </form>
+                    </template>
                 </div>
             </div>
         </nav>
@@ -29,7 +39,11 @@
 </template>
 
 <script setup>
-import { Link } from '@inertiajs/vue3'
+import { Link, router } from '@inertiajs/vue3'
+
+function logout() {
+    router.post('/logout')
+}
 </script>
 
 <style scoped>
@@ -70,6 +84,7 @@ import { Link } from '@inertiajs/vue3'
 .nav-links {
     display: flex;
     gap: 5px;
+    align-items: center;
 }
 
 .nav-link {
@@ -92,6 +107,29 @@ import { Link } from '@inertiajs/vue3'
     color: white;
     background-color: rgba(255, 255, 255, 0.2);
     font-weight: 600;
+}
+
+.logout-form {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+}
+
+.logout-button {
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.logout-button:hover {
+    background-color: #c82333;
 }
 
 .page-container {

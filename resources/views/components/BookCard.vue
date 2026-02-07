@@ -1,297 +1,439 @@
 <template>
     <div class="book-card">
-        <div class="card-content">
-            <h2>{{ book.title }}</h2>
-            <div class="icons">
-                <SButton @click="openEditForm">✏️</SButton>
-                <SButton @click="handleDelete">🗑️</SButton>
+        <div class="book-header">
+            <div class="book-cover-container">
+                <img
+                    :src="book.cover"
+                    :alt="book.title"
+                    class="book-cover"
+                />
+                <div v-if="book.is18Plus" class="age-badge">18+</div>
             </div>
-            <p><strong>Author: </strong>{{ book.author }}</p>
-            <p><strong>Description: </strong>{{ book.description }}</p>
-            <p><strong>Genre: </strong>{{ book.genre }}</p>
-            <div class="interactive-stars-container">
-                <strong>Rating: </strong>
-                <div class="stars-wrapper">
-                    <div
-                        v-for="star in 5"
-                        :key="star"
-                        class="star"
-                        :class="{
-                            'active': star <= currentRating,
-                            'inactive': star > currentRating,
-                            'clickable': !ratingLocked
-                        }"
-                        @click="setRating(star)"
-                    >
-                        <font-awesome-icon
-                            :icon="star <= currentRating ? ['fas', 'star'] : ['far', 'star']"
-                            class="star-icon"
-                        />
+
+            <div class="book-info">
+                <h3 class="book-title">{{ book.title }}</h3>
+                <p class="book-author">by {{ book.author }}</p>
+                <p class="book-genre">{{ book.genre }}</p>
+                <div class="book-rating">
+                    <div class="rating-stars">
+                       <span
+                           v-for="star in 5"
+                           :key="star"
+                           class="star"
+                           :class="{ 'filled': star <= Math.round(book.rating) }"
+                       >
+                           <font-awesome-icon icon="star"/>
+                       </span>
+                    </div>
+                    <div class="rating-info">
+                        <span class="rating-value">{{ book.rating.toFixed(1) }}</span>
+                        <span class="rating-count">({{ book.rating_count }} ratings)</span>
                     </div>
                 </div>
-                <span class="rating-value">{{ currentRating.toFixed(1) }}</span>
-                <span v-if="ratingLocked" class="rating-locked">✓</span>
-            </div>
-            <p><strong>There's an age warning (18+): </strong> {{ book.is18Plus }}</p>
-            <div class="cover-container">
-                <div class="cover-image-wrapper">
-                    <img :src="book.cover" alt="Book Cover" class="book-cover" />
-                    <div
-                        class="cover-star"
-                        :class="{ 'has-rating': hasRating }"
-                    >
-                        <font-awesome-icon
-                            :icon="hasRating ? ['fas', 'star'] : ['far', 'star']"
-                            class="cover-star-icon"
-                        />
-                        <span class="cover-rating-value">
-                                  {{ hasRating ? currentRating.toFixed(1) : '0.0' }}
-                            </span>
-                    </div>
+
+                <div v-if="book.description" class="book-description">
+                    {{ truncateDescription(book.description) }}
                 </div>
             </div>
         </div>
-        <BookForm
-            v-if="showEditForm"
-            :is-visible="showEditForm"
-            :book-to-edit="book"
-            mode="edit"
-            @save-book="handleSave"
-            @close="closeEditForm"
-            @cancel="closeEditForm"
-        />
+
+        <div class="book-actions">
+            <div class="rating-section" v-if="!book.has_rated">
+                <p class="rating-label">Rate this book:</p>
+                <div class="rating-input">
+                   <span
+                       v-for="rating in 5"
+                       :key="rating"
+                       class="rating-option"
+                       :class="[rating <= book.user_rating ? 'text-warning' : 'text-secondary']"
+                       @click="setRating(rating)"
+                   >
+                       <font-awesome-icon icon="star"/>
+                   </span>
+                </div>
+            </div>
+            <div v-else class="rated-message">
+                <span class="rated-text">You rated this book</span>
+            </div>
+            <div class="action-buttons">
+                <Link
+                    v-if="canEditBook"
+                    :href="`/books/${book.id}/edit`"
+                    class="btn btn-edit"
+                >
+                    Edit
+                </Link>
+                <button
+                    v-if="canDeleteBook"
+                    @click="deleteBook"
+                    class="btn btn-delete"
+                >
+                    Delete
+                </button>
+            </div>
+
+            <div class="book-meta">
+               <span class="meta-item">
+                   <span class="meta-icon">📅</span>
+                   {{ formatDate(book.created_at) }}
+               </span>
+            </div>
+        </div>
     </div>
 </template>
 
+
 <script setup>
-import { ref, defineProps, computed, onMounted, defineEmits, watch } from 'vue';
-import { SButton } from 'startup-ui'
-import BookForm from './BookForm.vue';
+import { defineProps, defineEmits, computed } from 'vue';
+import { Link, usePage, router } from '@inertiajs/vue3';
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
 const props = defineProps({
-    book: Object,
-});
-
-const emit = defineEmits(['update', 'delete', 'rating-change']);
-
-const showEditForm = ref(false);
-
-const openEditForm = () => {
-    showEditForm.value = true;
-};
-
-const closeEditForm = () => {
-    showEditForm.value = false;
-};
-
-const handleSave = (updatedBook) => {
-    console.log('handleSave', updatedBook);
-    emit('update', updatedBook);
-    closeEditForm();
-};
-
-const handleDelete = () => {
-    if (confirm(`Are you sure you want to delete "${props.book.title}"?`)) {
-        emit('delete', props.book.id);
+    book: {
+        type: Object,
+        required: true
+    },
+    auth: {
+        type: Object,
+        default: () => ({})
     }
+});
+
+defineEmits(['rating-change']);
+const page = usePage();
+
+const canEditBook = computed(() => {
+    return page.props.auth.user && page.props.auth.user.id === props.book.user_id;
+});
+
+const canDeleteBook = computed(() => {
+    return page.props.auth.user && page.props.auth.user.id === props.book.user_id;
+});
+
+const truncateDescription = (description) => {
+    if (description && description.length > 350) {
+        return description.substring(0, 350) + '...';
+    }
+    return description;
 };
 
-const currentRating = ref(props.book.ranking || 0);
-const ratingLocked = ref(false);
-
-const hasRating = computed(() => {
-    return currentRating.value >= 1;
-});
+const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+};
 
 const setRating = (rating) => {
-    if (!ratingLocked.value) {
-        currentRating.value = rating;
-        ratingLocked.value = true;
-        emit('rating-change', props.book.id, rating);
-    }
-};
+    router.post(`/books/${props.book.id}/rate`, {
+        rating: rating
+    }, {
+        preserveScroll: true
+    });
+}
 
-watch(() => props.book.ranking, (newRanking) => {
-    currentRating.value = newRanking;
-    if (newRanking > 0) {
-        ratingLocked.value = true;
-    } else {
-        ratingLocked.value = false;
-    }
-});
+function deleteBook() {
+    if (!confirm(`Delete "${props.book.title}"?`)) return;
 
-onMounted(() => {
-    if (props.book.ranking > 0) {
-        ratingLocked.value = true;
-    }
-});
+    router.delete(`/books/${props.book.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+        },
+        onError: (errors) => {
+            alert('Delete failed: ' + Object.values(errors).join(', '));
+        }
+    });
+}
 </script>
 
 <style scoped>
 .book-card {
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 5px;
-    margin: 5px 10px;
-    width: 255px;
-    text-align: center;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0e0e0;
+    transition: transform 0.3s, box-shadow 0.3s;
+    width: 350px;
+    max-width: 100%;
+}
+
+
+.book-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+
+.book-header {
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-sizing: border-box;
+    gap: 20px;
+    margin-bottom: 20px;
 }
 
-.card-content {
-    flex: 1;
-    margin: 0;
-}
 
-h2 {
-    font-size: 20px;
-    margin-top: 13px;
-    margin-bottom: 13px;
-}
-
-.icons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-size: 30px;
-}
-
-.icons button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 15px;
-}
-
-img {
-    width: 155px;
-    height: 230px;
-    border-radius: 8px;
-    align-items: flex-end;
-    object-fit: cover;
-}
-
-.interactive-stars-container {
-    margin: 10px 0;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.stars-wrapper {
-    display: flex;
-    gap: 10px;
-}
-
-.star {
-    font-size: 20px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    width: 13px;
-    height: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-}
-
-.star.clickable:hover {
-    transform: scale(1.2);
-    background-color: rgba(255, 204, 0, 0.1);
-}
-
-.star.active {
-    color: gold;
-    text-shadow: 0 0 5px rgba(255, 204, 0, 0.5);
-}
-
-.star.inactive {
-    color: darkgrey;
-}
-
-.rating-value {
-    font-weight: bold;
-    color: #333;
-    font-size: 15px;
-    min-width: 15px;
-}
-
-.rating-locked {
-    color: darkgreen;
-    font-weight: bold;
-    font-size: 15px;
-}
-
-.cover-container {
-    margin: 10px 45px;
-}
-
-.cover-image-wrapper {
+.book-cover-container {
     position: relative;
-    display: inline-block;
-    width: 155px;
-    height: 230px;
+    flex-shrink: 0;
+    width: 120px;
+    height: 180px;
 }
+
 
 .book-cover {
     width: 100%;
     height: 100%;
-    border-radius: 8px;
     object-fit: cover;
-    display: block;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.cover-star {
+
+.age-badge {
     position: absolute;
-    top: -18px;
-    left: -23px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 38px;
-    z-index: 10;
-    color: gold;
-}
-
-.cover-star:not(.has-rating) {
-    background-color: transparent;
-    color: #666666;
-}
-
-.cover-star.has-rating {
-    background-color: transparent;
-    border: none;
-}
-
-.cover-rating-value {
-    position: absolute;
-    bottom: -10px;
-    right: -10px;
-    background: white;
-    border-radius: 50%;
-    width: 25px;
-    height: 25px;
-    font-size: 15px;
+    top: 10px;
+    right: 90px;
+    background: #dc3545;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
     font-weight: bold;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #FFCC00;
-    color: #333;
-    z-index: 11;
 }
 
-.cover-star:not(.has-rating) .cover-rating-value {
-    border-color: #CCCCCC;
-    color: #666666;
+
+.book-info {
+    flex: 1;
+}
+
+
+.book-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+    line-height: 1.3;
+}
+
+
+.book-author {
+    color: #666;
+    font-size: 14px;
+    margin: 0 0 10px 0;
+}
+
+
+.book-genre {
+    display: inline-block;
+    background: #f0f7ff;
+    color: #005bb5;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-bottom: 15px;
+}
+
+
+.book-rating {
+    margin-bottom: 15px;
+}
+
+
+.rating-stars {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 5px;
+}
+
+
+.star {
+    font-size: 20px;
+    color: #ddd;
+    transition: color 0.2s;
+}
+
+
+.star.filled {
+    color: #ffd700;
+}
+
+
+.rating-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+
+.rating-value {
+    font-weight: 600;
+    color: #333;
+}
+
+
+.rating-count {
+    color: #666;
+}
+
+
+.book-description {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.5;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #f0f0f0;
+}
+
+
+.book-actions {
+    border-top: 1px solid #f0f0f0;
+    padding-top: 20px;
+}
+
+
+.rating-section {
+    margin-bottom: 20px;
+}
+
+
+.rating-label {
+    font-size: 14px;
+    color: #666;
+    margin: 0 0 10px 0;
+}
+
+
+.rating-input {
+    display: flex;
+    gap: 5px;
+}
+
+
+.rating-option {
+    font-size: 24px;
+    color: #ddd;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+}
+
+
+.rating-option:hover {
+    color: #ffd700;
+    transform: scale(1.2);
+}
+
+
+.rating-option.selected {
+    color: #ffd700;
+}
+
+
+.rated-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+
+.rated-text {
+    font-size: 14px;
+    color: #666;
+}
+
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+
+.btn {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    text-decoration: none;
+    text-align: center;
+}
+
+
+.btn-edit {
+    background: #f0f7ff;
+    color: #005bb5;
+    border: 1px solid #005bb5;
+}
+
+
+.btn-edit:hover {
+    background: #005bb5;
+    color: white;
+}
+
+
+.btn-delete {
+    background: #fff5f5;
+    color: #dc3545;
+    border: 1px solid #dc3545;
+}
+
+
+.btn-delete:hover {
+    background: #dc3545;
+    color: white;
+}
+
+
+.book-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 12px;
+    color: #888;
+}
+
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+
+.meta-icon {
+    font-size: 14px;
+}
+
+
+@media (max-width: 768px) {
+    .book-header {
+        flex-direction: column;
+    }
+
+
+    .book-cover-container {
+        width: 100%;
+        height: 200px;
+    }
+
+
+    .action-buttons {
+        flex-direction: column;
+    }
 }
 </style>

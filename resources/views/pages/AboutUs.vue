@@ -25,9 +25,6 @@
             <Link href="/" class="nav-link">
                 <span>Home Page</span>
             </Link>
-            <Link href="/dashboard" class="nav-link">
-                <span>Dashboard</span>
-            </Link>
             <Link href="/profile" class="nav-link">
                 <span>Profile</span>
             </Link>
@@ -40,7 +37,7 @@
 
 <script setup>
 import App from '../layouts/App.vue'
-import {Link} from "@inertiajs/vue3";
+import { Link } from "@inertiajs/vue3";
 </script>
 
 <style scoped>

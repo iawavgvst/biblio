@@ -2,63 +2,79 @@
     <App>
         <div class="dashboard-page">
             <div class="header-container">
-                <h1>Dashboard</h1>
+                <h1>Admin Dashboard</h1>
                 <p class="subtitle">
-                    Welcome to your personal dashboard
+                    Welcome to the administration panel
                 </p>
             </div>
             <div class="stats-container">
                 <div class="stat-card">
-                    <div class="stat-icon">📚</div>
+                    <div class="stat-icon"><font-awesome-icon icon="users"/></div>
                     <div class="stat-content">
-                        <h3>Total Books</h3>
-                        <p class="stat-value">{{ books.length }}</p>
+                        <h3>Total Users</h3>
+                        <p class="stat-value">{{ stats.totalUsers }}</p>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">⭐</div>
+                    <div class="stat-icon"><font-awesome-icon icon="pen"/></div>
                     <div class="stat-content">
-                        <h3>Rated Books</h3>
-                        <p class="stat-value">{{ ratedBooksCount }}</p>
+                        <h3>Admin Users</h3>
+                        <p class="stat-value">{{ stats.adminUsers }}</p>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">🔞</div>
+                    <div class="stat-icon"><font-awesome-icon icon="user"/></div>
                     <div class="stat-content">
-                        <h3>18+ Books</h3>
-                        <p class="stat-value">{{ adultBooksCount }}</p>
-                    </div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-icon">📊</div>
-                    <div class="stat-content">
-                        <h3>Avg Rating</h3>
-                        <p class="stat-value">{{ averageRating.toFixed(1) }}</p>
+                        <h3>Regular Users</h3>
+                        <p class="stat-value">{{ stats.regularUsers }}</p>
                     </div>
                 </div>
             </div>
-            <div class="recent-books">
-                <h2>Recent Books</h2>
-                <div class="books-list">
-                    <div v-for="book in recentBooks" :key="book.id" class="book-item">
-                        <img :src="book.cover" :alt="book.title" class="book-thumbnail" />
-                        <div class="book-info">
-                            <h4>{{ book.title }}</h4>
-                            <p class="book-author">{{ book.author }}</p>
-                            <div class="book-rating">
-                                <span class="rating-stars">
-                                    <font-awesome-icon
-                                        v-for="star in 5"
-                                        :key="star"
-                                        :icon="star <= book.ranking ? ['fas', 'star'] : ['far', 'star']"
-                                        class="star-icon"
-                                    />
-                                </span>
-                                <span class="rating-value">{{ book.ranking.toFixed(1) }}</span>
-                            </div>
-                        </div>
-                    </div>
+            <div class="recent-users">
+                <div class="section-header">
+                    <h2>Recent Users</h2>
+                    <Link href="/admin/users" class="view-all-link">
+                        View All Users →
+                    </Link>
+                </div>
+                <div class="users-table">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr v-for="user in recentUsers" :key="user.id">
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.name }}</td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                    <span :class="['role-badge', user.role]">
+                                        {{ user.role }}
+                                    </span>
+                            </td>
+                            <td class="actions">
+                                <SButton
+                                    @click="editUser(user)"
+                                    class="btn-edit"
+                                >
+                                    Edit
+                                </SButton>
+                                <SButton
+                                    @click="deleteUser(user)"
+                                    class="btn-delete"
+                                >
+                                    Delete
+                                </SButton>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
             <div class="navigation-links">
@@ -80,35 +96,40 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
-import { Link } from '@inertiajs/vue3';
-import App from '../layouts/App.vue';
+import {Link, router} from '@inertiajs/vue3';
+import App from '../../layouts/App.vue';
+import { defineProps } from 'vue';
+import { SButton } from 'startup-ui'
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
-const props = defineProps({
-    books: {
+defineProps({
+    stats: {
+        type: Object,
+        default: () => ({
+            totalUsers: 0,
+            adminUsers: 0,
+            regularUsers: 0
+        })
+    },
+    recentUsers: {
         type: Array,
         default: () => []
+    },
+    auth: {
+        type: Object,
+        default: () => ({})
     }
 });
 
-const ratedBooksCount = computed(() => {
-    return props.books.filter(book => book.ranking > 0).length
-});
+function editUser(user) {
+    router.get(`/admin/users/${user.id}/edit`);
+};
 
-const adultBooksCount = computed(() => {
-    return props.books.filter(book => book.is18Plus).length
-});
-
-const averageRating = computed(() => {
-    const ratedBooks = props.books.filter(book => book.ranking > 0)
-    if (ratedBooks.length === 0) return 0
-    const total = ratedBooks.reduce((sum, book) => sum + book.ranking, 0)
-    return total / ratedBooks.length
-});
-
-const recentBooks = computed(() => {
-    return [...props.books].slice(0, 3)
-});
+function deleteUser(user) {
+    if (confirm(`Вы уверены, что хотите удалить ${user.name}?`)) {
+        router.delete(`/admin/users/${user.id}`)
+    }
+};
 </script>
 
 <style scoped>
@@ -191,7 +212,7 @@ h1 {
     color: #333;
 }
 
-.recent-books {
+.recent-users {
     background: white;
     border-radius: 12px;
     padding: 30px;
@@ -200,7 +221,135 @@ h1 {
     border: 1px solid #e0e0e0;
 }
 
-.recent-books h2 {
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+}
+
+.section-header h2 {
+    font-size: 28px;
+    margin: 0;
+    color: #333;
+    border-bottom: 2px solid #005bb5;
+    padding-bottom: 10px;
+}
+
+.view-all-link {
+    color: #005bb5;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.view-all-link:hover {
+    color: #003d82;
+    text-decoration: underline;
+}
+
+.users-table {
+    overflow-x: auto;
+}
+
+.users-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table th {
+    text-align: center;
+    padding: 16px;
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+    font-weight: 600;
+    font-size: 14px;
+    text-transform: uppercase;
+}
+
+.users-table td {
+    padding: 16px;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.users-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.role-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.role-badge.admin {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.role-badge.user {
+    background-color: #e2e3e5;
+    color: #383d41;
+    border: 1px solid #d6d8db;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    min-width: 150px;
+    justify-content: center;
+}
+
+.btn-edit {
+    padding: 8px 16px;
+    background-color: #005bb5;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn-edit:hover {
+    background-color: #003d82;
+}
+
+.btn-delete {
+    padding: 8px 16px;
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+}
+
+.quick-actions {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0e0e0;
+}
+
+.quick-actions h2 {
     font-size: 28px;
     margin-bottom: 25px;
     color: #333;
@@ -208,69 +357,42 @@ h1 {
     padding-bottom: 10px;
 }
 
-.books-list {
+.actions-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
 }
 
-.book-item {
+.action-btn {
     display: flex;
-    gap: 20px;
-    padding: 20px;
-    background: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    transition: background-color 0.3s ease;
-}
-
-.book-item:hover {
-    background-color: #e9ecef;
-}
-
-.book-thumbnail {
-    width: 80px;
-    height: 120px;
-    border-radius: 6px;
-    object-fit: cover;
-}
-
-.book-info {
-    flex: 1;
-}
-
-.book-info h4 {
-    margin: 0 0 8px 0;
-    font-size: 18px;
-    color: #333;
-}
-
-.book-author {
-    margin: 0 0 12px 0;
-    color: #666;
-    font-size: 14px;
-}
-
-.book-rating {
-    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-}
-
-.rating-stars {
-    display: flex;
-    gap: 4px;
-}
-
-.star-icon {
-    font-size: 14px;
-    color: gold;
-}
-
-.rating-value {
-    font-weight: bold;
+    justify-content: center;
+    padding: 30px 20px;
+    background: #f8f9fa;
     color: #333;
-    font-size: 14px;
+    text-decoration: none;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+}
+
+.action-btn:hover {
+    background: #e9ecef;
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    color: #005bb5;
+}
+
+.action-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+
+.action-btn span {
+    font-size: 16px;
+    font-weight: 500;
 }
 
 .navigation-links {
@@ -306,19 +428,6 @@ h1 {
     font-weight: 500;
 }
 
-.quick-actions h2 {
-    font-size: 28px;
-    margin-bottom: 25px;
-    color: #333;
-    border-bottom: 2px solid #005bb5;
-    padding-bottom: 10px;
-}
-
-.action-btn span:last-child {
-    font-size: 16px;
-    font-weight: 500;
-}
-
 @media (max-width: 768px) {
     h1 {
         font-size: 36px;
@@ -328,8 +437,23 @@ h1 {
         grid-template-columns: 1fr;
     }
 
-    .books-list {
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .actions-grid {
         grid-template-columns: 1fr;
+    }
+
+    .users-table {
+        font-size: 14px;
+    }
+
+    .users-table th,
+    .users-table td {
+        padding: 8px 12px;
     }
 
     .navigation-links {

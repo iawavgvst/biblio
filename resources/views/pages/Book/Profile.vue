@@ -7,9 +7,7 @@
                     Manage your personal information and books
                 </p>
             </div>
-
             <div class="profile-container">
-                <!-- Profile Information Card -->
                 <div class="profile-card">
                     <div class="profile-header">
                         <div class="avatar-container">
@@ -31,7 +29,6 @@
                             </p>
                         </div>
                     </div>
-
                     <form @submit.prevent="submitForm" class="profile-form">
                         <div class="form-group">
                             <label for="name">Name</label>
@@ -46,7 +43,6 @@
                                 {{ errors.name }}
                             </div>
                         </div>
-
                         <div class="form-group">
                             <label for="email">Email Address</label>
                             <input
@@ -60,7 +56,6 @@
                                 {{ errors.email }}
                             </div>
                         </div>
-
                         <div class="form-actions">
                             <button
                                 type="submit"
@@ -76,8 +71,6 @@
                         </div>
                     </form>
                 </div>
-
-                <!-- My Books Section -->
                 <div class="books-section">
                     <div class="section-header">
                         <h2>My Books</h2>
@@ -85,7 +78,6 @@
                             Books you have added to the library
                         </p>
                     </div>
-
                     <div v-if="books.length === 0" class="empty-state">
                         <div class="empty-icon">📚</div>
                         <h3>No books yet</h3>
@@ -94,7 +86,6 @@
                             Add Your First Book
                         </Link>
                     </div>
-
                     <div v-else class="books-grid">
                         <div
                             v-for="book in books"
@@ -112,7 +103,6 @@
                                     <span class="rating-value">{{ book.rating.toFixed(1) }}</span>
                                 </div>
                             </div>
-
                             <div class="book-info">
                                 <h3 class="book-title">{{ book.title }}</h3>
                                 <p class="book-author">by {{ book.author }}</p>
@@ -124,11 +114,10 @@
                                         {{ book.created_at }}
                                     </span>
                                     <span class="meta-item">
-                                        <span class="meta-icon">⭐</span>
-                                        {{ book.rating_count }} ratings
+                                        <span class="meta-icon"><font-awesome-icon icon="star"/></span>
+                                        {{ book.ratings_count }} ratings
                                     </span>
                                 </div>
-
                                 <div class="book-actions">
                                     <Link
                                         :href="`/books/${book.id}/edit`"
@@ -148,7 +137,7 @@
                     </div>
                 </div>
                 <div class="navigation-links">
-                    <Link href="/" class="nav-link">
+                    <Link href="/public" class="nav-link">
                         <span>Home Page</span>
                     </Link>
                     <Link href="/about" class="nav-link">
@@ -164,9 +153,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, defineProps, computed, onMounted } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import App from '../layouts/App.vue';
+import App from '../../layouts/App.vue';
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
 const props = defineProps({
     books: {
@@ -210,11 +200,9 @@ const submitForm = () => {
 
 const deleteBook = (bookId) => {
     if (confirm('Are you sure you want to delete this book?')) {
-        // In a real app, you would make an API call here
         console.log('Deleting book:', bookId);
-        // For now, we'll just show an alert
         alert('Book deletion would be handled via API in a real application');
-    }
+    };
 };
 
 onMounted(() => {

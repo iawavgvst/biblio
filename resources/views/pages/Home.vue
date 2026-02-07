@@ -3,7 +3,7 @@
         <div class="home-page">
             <div class="btn-container">
                 <h1>Books List</h1>
-                <SButton class="btn" @click="openBookForm">ADD</SButton>
+                <SButton class="btn" @click="goToCreate">ADD</SButton>
                 <SButton class="btn reset-btn" @click="resetAllRatings">RESET RATINGS</SButton>
             </div>
             <div class="book-container">
@@ -11,100 +11,80 @@
                     v-for="book in books"
                     :key="book.id"
                     :book="book"
-                    @update="updateBook"
                     @delete="deleteBook"
                     @rating-change="handleRatingChange"
                 />
             </div>
-            <Dialog
-                v-if="showBookForm"
-                @close="closeBookForm">
-                <template #title>
-                    <h2>{{ isEditMode ? 'Edit Book' : 'Add New Book' }}</h2>
-                </template>
-                <BookForm
-                    :is-visible="showBookForm"
-                    :book-to-edit="bookToEdit"
-                    :mode="isEditMode ? 'edit' : 'create'"
-                    @save-book="handleSaveBook"
-                    @close="closeBookForm"
-                    @cancel="closeBookForm"
-                />
-            </Dialog>
         </div>
     </App>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { SButton } from 'startup-ui'
-import BookCard from '../components/BookCard.vue'
-import BookForm from '../components/BookForm.vue'
-import Dialog from '../components/Dialog.vue'
-import App from '../layouts/App.vue'
+import { reactive } from 'vue';
+import { SButton } from 'startup-ui';
+import { router } from '@inertiajs/vue3';
+import BookCard from '../components/BookCard.vue';
+import App from '../layouts/App.vue';
 
 const props = defineProps({
     books: Array
-})
+});
 
-const books = reactive([...props.books])
+const books = reactive([...props.books]);
 
-const showBookForm = ref(false)
-const isEditMode = ref(false)
-const bookToEdit = ref(null)
-
-const openBookForm = () => {
-    isEditMode.value = false
-    bookToEdit.value = null
-    showBookForm.value = true
-}
-
-const closeBookForm = () => {
-    showBookForm.value = false
-    isEditMode.value = false
-    bookToEdit.value = null
-}
-
-const handleSaveBook = (book) => {
-    if (isEditMode.value) {
-        updateBook(book)
-    } else {
-        addNewBook(book)
-    }
-    closeBookForm()
-}
-
-const addNewBook = (newBook) => {
-    books.push(newBook);
+const goToCreate = () => {
+    router.visit('/books/create')
 };
 
-const updateBook = (updatedBook) => {
-    const index = books.findIndex(book => book.id === updatedBook.id);
-    if (index !== -1) {
-        books[index] = updatedBook;
-    }
-};
-
-const deleteBook = (bookId) => {
-    const index = books.findIndex(book => book.id === bookId);
-    if (index !== -1) {
-        books.splice(index, 1);
-    }
-};
-
-const resetAllRatings = () => {
-    if (confirm('Are you sure you want to reset all ratings to 0?')) {
-        books.forEach(book => {
-            book.ranking = 0;
+const deleteBook = async (bookId) => {
+    try {
+        const response = await fetch(`/books/${bookId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            }
         });
-        console.log('All ratings have been reset to 0');
+
+
+        if (response.ok) {
+            const index = books.findIndex(book => book.id === bookId)
+            if (index !== -1) {
+                books.splice(index, 1)
+            }
+        }
+    } catch (error) {
+        console.error('Error deleting book:', error)
     }
 };
+
+const resetAllRatings = async () => {
+    if (confirm('Are you sure you want to reset all ratings to 0?')) {
+        try {
+            const response = await fetch('/books/reset-ratings', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            });
+
+
+            if (response.ok) {
+                books.forEach(book => {
+                    book.rating = 0
+                    book.rating_count = 0
+                    book.has_rated = false
+                })
+            }
+        } catch (error) {
+            console.error('Error resetting ratings:', error)
+        }
+    };
+}
 
 const handleRatingChange = (bookId, newRating) => {
-    const book = books.find(b => b.id === bookId);
+    const book = books.find(b => b.id === bookId)
     if (book) {
-        book.ranking = newRating;
+        book.rating = newRating
     }
 };
 </script>
@@ -120,16 +100,6 @@ h1 {
     margin-bottom: 13px;
     text-align: center;
     color: black;
-}
-
-h2 {
-    font-size: 25px;
-    margin-top: 13px;
-    margin-bottom: 13px;
-    text-align: left;
-    text-transform: uppercase;
-    color: darkblue;
-    font-style: italic;
 }
 
 .btn-container {
@@ -168,5 +138,14 @@ h2 {
 
 .btn:active {
     transform: translateY(0);
+}
+
+.reset-btn {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.reset-btn:hover {
+    background-color: #f8d7da;
 }
 </style>
