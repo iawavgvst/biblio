@@ -9,7 +9,6 @@
                 />
                 <div v-if="book.is18Plus" class="age-badge">18+</div>
             </div>
-
             <div class="book-info">
                 <h3 class="book-title">{{ book.title }}</h3>
                 <p class="book-author">by {{ book.author }}</p>
@@ -20,40 +19,67 @@
                            v-for="star in 5"
                            :key="star"
                            class="star"
-                           :class="{ 'filled': star <= Math.round(book.rating) }"
+                           :class="{ 'filled': star <= Math.round(book.average_rating) }"
                        >
                            <font-awesome-icon icon="star"/>
                        </span>
                     </div>
                     <div class="rating-info">
-                        <span class="rating-value">{{ book.rating.toFixed(1) }}</span>
-                        <span class="rating-count">({{ book.rating_count }} ratings)</span>
+                        <span class="rating-value">{{ book.average_rating.toFixed(1) }}</span>
+                        <span class="rating-count">({{ book.ratings_count }} ratings)</span>
                     </div>
                 </div>
-
                 <div v-if="book.description" class="book-description">
                     {{ truncateDescription(book.description) }}
                 </div>
             </div>
         </div>
-
         <div class="book-actions">
-            <div class="rating-section" v-if="!book.has_rated">
-                <p class="rating-label">Rate this book:</p>
+            <div v-if="user && !book.has_rated" class="user-rating-section">
+                <p class="rating-label">Your rating:</p>
                 <div class="rating-input">
                    <span
                        v-for="rating in 5"
                        :key="rating"
                        class="rating-option"
-                       :class="[rating <= book.user_rating ? 'text-warning' : 'text-secondary']"
+                       :class="[rating <= currentUserRating ? 'selected' : '']"
                        @click="setRating(rating)"
+                       @mouseenter="hoverRating = rating"
+                       @mouseleave="hoverRating = null"
                    >
                        <font-awesome-icon icon="star"/>
                    </span>
                 </div>
+                <div v-if="currentUserRating > 0" class="rating-confirm">
+                    <button @click="submitRating" class="btn btn-submit">
+                        Submit {{ currentUserRating }}/5
+                    </button>
+                    <button @click="cancelRating" class="btn btn-cancel">
+                        Cancel
+                    </button>
+                </div>
             </div>
-            <div v-else class="rated-message">
-                <span class="rated-text">You rated this book</span>
+            <div v-else-if="user && book.has_rated" class="rated-message">
+                <div class="rated-info">
+                    <span class="rated-text">Your rating:</span>
+                    <div class="user-rating-stars">
+                       <span
+                           v-for="star in 5"
+                           :key="star"
+                           class="star"
+                           :class="{ 'filled': star <= book.user_rating }"
+                       >
+                           <font-awesome-icon icon="star"/>
+                       </span>
+                    </div>
+                    <span class="rated-value">{{ book.user_rating }}/5</span>
+                </div>
+            </div>
+            <div v-else class="login-prompt">
+                <p class="login-text">Login to rate this book</p>
+                <Link href="/login" class="btn btn-login">
+                    Login
+                </Link>
             </div>
             <div class="action-buttons">
                 <Link
@@ -71,20 +97,22 @@
                     Delete
                 </button>
             </div>
-
             <div class="book-meta">
                <span class="meta-item">
                    <span class="meta-icon">📅</span>
                    {{ formatDate(book.created_at) }}
+               </span>
+                <span v-if="book.user" class="meta-item">
+                   <span class="meta-icon">👤</span>
+                   {{ book.user.name }}
                </span>
             </div>
         </div>
     </div>
 </template>
 
-
 <script setup>
-import { defineProps, defineEmits, computed } from 'vue';
+import { defineProps, computed, ref } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
@@ -93,13 +121,19 @@ const props = defineProps({
         type: Object,
         required: true
     },
+    user: {
+        type: Object,
+        default: () => ({})
+    },
     auth: {
         type: Object,
         default: () => ({})
     }
 });
 
-defineEmits(['rating-change']);
+const hoverRating = ref(null);
+const currentUserRating = ref(props.book.user_rating || 0);
+
 const page = usePage();
 
 const canEditBook = computed(() => {
@@ -128,12 +162,26 @@ const formatDate = (dateString) => {
 };
 
 const setRating = (rating) => {
+    currentUserRating.value = rating;
+};
+
+const submitRating = () => {
+    if (currentUserRating.value === 0) return;
+
     router.post(`/books/${props.book.id}/rate`, {
-        rating: rating
+        rating: currentUserRating.value
     }, {
-        preserveScroll: true
+        preserveScroll: true,
+        onSuccess: () => {
+            alert('You have set a rating!');
+            router.push('home');
+        }
     });
-}
+};
+
+const cancelRating = () => {
+    currentUserRating.value = props.book.user_rating || 0;
+};
 
 function deleteBook() {
     if (!confirm(`Delete "${props.book.title}"?`)) return;
@@ -141,6 +189,7 @@ function deleteBook() {
     router.delete(`/books/${props.book.id}`, {
         preserveScroll: true,
         onSuccess: () => {
+            router.push('home');
         },
         onError: (errors) => {
             alert('Delete failed: ' + Object.values(errors).join(', '));
@@ -162,19 +211,16 @@ function deleteBook() {
     max-width: 100%;
 }
 
-
 .book-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
-
 
 .book-header {
     display: flex;
     gap: 20px;
     margin-bottom: 20px;
 }
-
 
 .book-cover-container {
     position: relative;
@@ -183,7 +229,6 @@ function deleteBook() {
     height: 180px;
 }
 
-
 .book-cover {
     width: 100%;
     height: 100%;
@@ -191,7 +236,6 @@ function deleteBook() {
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
-
 
 .age-badge {
     position: absolute;
@@ -205,11 +249,9 @@ function deleteBook() {
     font-weight: bold;
 }
 
-
 .book-info {
     flex: 1;
 }
-
 
 .book-title {
     font-size: 18px;
@@ -219,13 +261,11 @@ function deleteBook() {
     line-height: 1.3;
 }
 
-
 .book-author {
     color: #666;
     font-size: 14px;
     margin: 0 0 10px 0;
 }
-
 
 .book-genre {
     display: inline-block;
@@ -238,11 +278,9 @@ function deleteBook() {
     margin-bottom: 15px;
 }
 
-
 .book-rating {
     margin-bottom: 15px;
 }
-
 
 .rating-stars {
     display: flex;
@@ -250,18 +288,15 @@ function deleteBook() {
     margin-bottom: 5px;
 }
 
-
 .star {
     font-size: 20px;
     color: #ddd;
     transition: color 0.2s;
 }
 
-
 .star.filled {
     color: #ffd700;
 }
-
 
 .rating-info {
     display: flex;
@@ -270,17 +305,14 @@ function deleteBook() {
     font-size: 14px;
 }
 
-
 .rating-value {
     font-weight: 600;
     color: #333;
 }
 
-
 .rating-count {
     color: #666;
 }
-
 
 .book-description {
     font-size: 14px;
@@ -291,73 +323,119 @@ function deleteBook() {
     border-top: 1px solid #f0f0f0;
 }
 
-
 .book-actions {
     border-top: 1px solid #f0f0f0;
     padding-top: 20px;
 }
 
-
-.rating-section {
-    margin-bottom: 20px;
+.debug-info {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-size: 12px;
+    color: #666;
 }
 
+.debug-info p {
+    margin: 5px 0;
+}
+
+.user-rating-section {
+    margin-bottom: 20px;
+}
 
 .rating-label {
     font-size: 14px;
     color: #666;
     margin: 0 0 10px 0;
+    font-weight: 500;
 }
-
 
 .rating-input {
     display: flex;
     gap: 5px;
+    margin-bottom: 15px;
 }
 
-
 .rating-option {
-    font-size: 24px;
+    font-size: 28px;
     color: #ddd;
     cursor: pointer;
     transition: color 0.2s, transform 0.2s;
 }
-
 
 .rating-option:hover {
     color: #ffd700;
     transform: scale(1.2);
 }
 
-
 .rating-option.selected {
     color: #ffd700;
 }
 
+.rating-confirm {
+    display: flex;
+    gap: 10px;
+}
 
 .rated-message {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 15px;
     margin-bottom: 20px;
-    padding: 10px;
+    padding: 15px;
     background: #f8f9fa;
     border-radius: 8px;
+    border: 1px solid #e9ecef;
 }
 
+.rated-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
 .rated-text {
     font-size: 14px;
     color: #666;
+    font-weight: 500;
 }
 
+.user-rating-stars {
+    display: flex;
+    gap: 2px;
+}
+
+.rated-value {
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.login-prompt {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f0f7ff;
+    border-radius: 8px;
+    border: 1px solid #cfe2ff;
+}
+
+.login-text {
+    font-size: 14px;
+    color: #005bb5;
+    margin: 0;
+}
 
 .action-buttons {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
 }
-
 
 .btn {
     flex: 1;
@@ -372,6 +450,41 @@ function deleteBook() {
     text-align: center;
 }
 
+.btn-submit {
+    background: #28a745;
+    color: white;
+}
+
+.btn-submit:hover {
+    background: #218838;
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.btn-cancel:hover {
+    background: #5a6268;
+}
+
+.btn-change {
+    background: #ffc107;
+    color: #212529;
+}
+
+.btn-change:hover {
+    background: #e0a800;
+}
+
+.btn-login {
+    background: #005bb5;
+    color: white;
+}
+
+.btn-login:hover {
+    background: #004a94;
+}
 
 .btn-edit {
     background: #f0f7ff;
@@ -379,12 +492,10 @@ function deleteBook() {
     border: 1px solid #005bb5;
 }
 
-
 .btn-edit:hover {
     background: #005bb5;
     color: white;
 }
-
 
 .btn-delete {
     background: #fff5f5;
@@ -392,12 +503,10 @@ function deleteBook() {
     border: 1px solid #dc3545;
 }
 
-
 .btn-delete:hover {
     background: #dc3545;
     color: white;
 }
-
 
 .book-meta {
     display: flex;
@@ -407,33 +516,35 @@ function deleteBook() {
     color: #888;
 }
 
-
 .meta-item {
     display: flex;
     align-items: center;
     gap: 5px;
 }
 
-
 .meta-icon {
     font-size: 14px;
 }
-
 
 @media (max-width: 768px) {
     .book-header {
         flex-direction: column;
     }
 
-
     .book-cover-container {
         width: 100%;
         height: 200px;
     }
 
-
-    .action-buttons {
+    .action-buttons,
+    .rating-confirm {
         flex-direction: column;
+    }
+
+    .rated-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
     }
 }
 </style>
