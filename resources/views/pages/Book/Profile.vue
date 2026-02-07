@@ -16,8 +16,8 @@
                             </div>
                         </div>
                         <div class="profile-info">
-                            <h2>{{ user.name || 'User Name' }}</h2>
-                            <p class="email">{{ user.email || 'user@example.com' }}</p>
+                            <h2>{{ auth?.user.name || 'User Name' }}</h2>
+                            <p class="email">{{ auth?.user.email || 'user@example.com' }}</p>
                             <p class="stats">
                                 <span class="stat-item">
                                     <strong>{{ books.length }}</strong> Books
@@ -60,9 +60,9 @@
                             <button
                                 type="submit"
                                 class="btn btn-primary"
-                                :disabled="processing"
+                                :disabled="form.processing"
                             >
-                                <span v-if="processing">Saving...</span>
+                                <span v-if="form.processing">Saving...</span>
                                 <span v-else>Save Changes</span>
                             </button>
                             <Link href="/books/create" class="btn btn-secondary">
@@ -99,7 +99,7 @@
                                     class="book-cover"
                                 />
                                 <div class="book-rating-badge">
-                                    <span class="rating-star">★</span>
+                                    <span class="rating-star"><font-awesome-icon icon="star"/></span>
                                     <span class="rating-value">{{ book.rating.toFixed(1) }}</span>
                                 </div>
                             </div>
@@ -154,7 +154,7 @@
 
 <script setup>
 import { ref, defineProps, computed, onMounted } from 'vue';
-import { useForm, Link } from '@inertiajs/vue3';
+import { useForm, Link, router } from '@inertiajs/vue3';
 import App from '../../layouts/App.vue';
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 
@@ -166,12 +166,16 @@ const props = defineProps({
     user: {
         type: Object,
         default: () => ({})
+    },
+    auth: {
+        type: Object,
+        default: () => ({})
     }
 });
 
 const form = useForm({
-    name: props.user.name || '',
-    email: props.user.email || '',
+    name: props.auth?.user.name || '',
+    email: props.auth?.user.email || '',
 });
 
 const processing = ref(false);
@@ -191,18 +195,23 @@ const totalRatings = computed(() => {
 });
 
 const submitForm = () => {
-    processing.value = true;
-    setTimeout(() => {
-        alert('Profile updated successfully!');
-        processing.value = false;
-    }, 1000);
+    alert('You have changed your email address. Please log in.');
+    form.put('/profile', {
+        preserveScroll: true,
+    });
 };
 
 const deleteBook = (bookId) => {
-    if (confirm('Are you sure you want to delete this book?')) {
-        console.log('Deleting book:', bookId);
-        alert('Book deletion would be handled via API in a real application');
-    };
+    if (confirm(`Delete this book?`)) {
+        router.delete(`/books/${bookId}`, {
+            preserveScroll: true,
+            onSuccess: () => {
+            },
+            onError: (errors) => {
+                console.error('Try again:', errors);
+            }
+        });
+    }
 };
 
 onMounted(() => {

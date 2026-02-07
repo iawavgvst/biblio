@@ -22,7 +22,7 @@ class UserUpdateRequest extends FormRequest
      */
     public function rules(): array
     {
-        $userId = $this->user ? $this->user->id : null;
+        $userId = auth()->id();;
 
         return [
             'name' =>'required|string|max:255',
@@ -32,7 +32,6 @@ class UserUpdateRequest extends FormRequest
                 'max:255',
                 Rule::unique('users')->ignore($userId),
             ],
-            'role' => 'required|in:admin,user',
         ];
     }
 
@@ -50,9 +49,6 @@ class UserUpdateRequest extends FormRequest
             'email.email' => 'Введите корректный адрес электронной почты в формате "example@some.domain".',
             'email.max' => 'Email не должен превышать 255 символов.',
             'email.unique' => 'Этот адрес электронной почты уже занят.',
-
-            'role.required' => 'Роль обязательна для заполнения.',
-            'role.in' => 'Выберите допустимую роль: администратор или пользователь.',
         ];
     }
 }

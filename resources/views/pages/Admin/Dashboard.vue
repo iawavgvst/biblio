@@ -123,13 +123,13 @@ defineProps({
 
 function editUser(user) {
     router.get(`/admin/users/${user.id}/edit`);
-};
+}
 
 function deleteUser(user) {
     if (confirm(`Вы уверены, что хотите удалить ${user.name}?`)) {
         router.delete(`/admin/users/${user.id}`)
     }
-};
+}
 </script>
 
 <style scoped>
