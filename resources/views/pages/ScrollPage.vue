@@ -93,10 +93,7 @@
                 <Link href="/about" class="nav-link">
                     <span>About Us</span>
                 </Link>
-                <Link href="/dashboard" class="nav-link">
-                    <span>Dashboard</span>
-                </Link>
-                <Link href="/profile" class="nav-link">
+                <Link href="/Book/Profile" class="nav-link">
                     <span>Profile</span>
                 </Link>
             </div>

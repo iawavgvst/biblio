@@ -6,5 +6,10 @@ library.add(
     solid.faChevronDown,
     solid.faCheck,
     solid.faStar,
-    regular.faStar
+    regular.faStar,
+    solid.faUser,
+    solid.faUsers,
+    solid.faPen,
+    solid.faTrash,
+    solid.faStar
 );
