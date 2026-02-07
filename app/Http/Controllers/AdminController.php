@@ -127,7 +127,7 @@ class AdminController extends Controller
 
         $regularUsers = User::where('role', 'user')->count();
 
-        $recentUsers = User::latest()->take(5)->get();
+        $recentUsers = User::oldest()->take(10)->get();
 
         return Inertia::render('Admin/Dashboard', [
             'isAdmin' => true,
