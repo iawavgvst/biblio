@@ -4,7 +4,6 @@
             <div class="btn-container">
                 <h1>Books List</h1>
                 <SButton class="btn" @click="goToCreate">ADD</SButton>
-                <SButton class="btn reset-btn" @click="resetAllRatings">RESET RATINGS</SButton>
             </div>
             <div class="book-container">
                 <BookCard
@@ -35,51 +34,6 @@ const books = reactive([...props.books]);
 const goToCreate = () => {
     router.visit('/books/create')
 };
-
-const deleteBook = async (bookId) => {
-    try {
-        const response = await fetch(`/books/${bookId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            }
-        });
-
-
-        if (response.ok) {
-            const index = books.findIndex(book => book.id === bookId)
-            if (index !== -1) {
-                books.splice(index, 1)
-            }
-        }
-    } catch (error) {
-        console.error('Error deleting book:', error)
-    }
-};
-
-const resetAllRatings = async () => {
-    if (confirm('Are you sure you want to reset all ratings to 0?')) {
-        try {
-            const response = await fetch('/books/reset-ratings', {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                }
-            });
-
-
-            if (response.ok) {
-                books.forEach(book => {
-                    book.rating = 0
-                    book.rating_count = 0
-                    book.has_rated = false
-                })
-            }
-        } catch (error) {
-            console.error('Error resetting ratings:', error)
-        }
-    };
-}
 
 const handleRatingChange = (bookId, newRating) => {
     const book = books.find(b => b.id === bookId)

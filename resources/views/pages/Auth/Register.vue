@@ -79,7 +79,7 @@
 
 <script setup>
 import { Link, useForm } from "@inertiajs/vue3";
-import { SInput, SButton, SFormRow } from 'startup-ui'
+import { SInput, SFormRow } from 'startup-ui'
 
 const form = useForm({
     name: '',
@@ -201,26 +201,6 @@ h3 {
     margin-top: 4px;
 }
 
-.terms-error {
-    margin-top: -10px;
-    margin-bottom: 10px;
-}
-
-.form-options {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-top: 10px;
-}
-
-.checkbox-label {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    cursor: pointer;
-    color: #555;
-    line-height: 1.4;
-}
 
 .checkbox-label input[type="checkbox"] {
     margin-top: 3px;
@@ -228,25 +208,6 @@ h3 {
     height: 18px;
     cursor: pointer;
     flex-shrink: 0;
-}
-
-.terms-link {
-    color: #005bb5;
-    text-decoration: none;
-    transition: color 0.3s ease;
-}
-
-.terms-link:hover {
-    color: #003d82;
-    text-decoration: underline;
-}
-
-.password-requirements {
-    padding: 20px;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    border: 1px solid #e0e0e0;
-    margin-top: 10px;
 }
 
 .password-requirements ul {
@@ -330,35 +291,6 @@ h3 {
     text-decoration: underline;
 }
 
-.navigation-links {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 15px;
-    margin-top: 40px;
-}
-
-.nav-link {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: white;
-    color: #333;
-    text-decoration: none;
-    border-radius: 12px;
-    transition: all 0.3s ease;
-    border: 1px solid #e0e0e0;
-    text-align: center;
-}
-
-.nav-link:hover {
-    background: #f8f9fa;
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    color: #005bb5;
-}
-
 .nav-link span:last-child {
     font-size: 14px;
     font-weight: 500;
@@ -382,26 +314,14 @@ h3 {
         gap: 15px;
     }
 
-    .navigation-links {
-        grid-template-columns: 1fr;
-    }
-
     .register-page {
         padding: 15px;
     }
 }
 
 @media (max-width: 480px) {
-    .header-container {
-        padding: 20px;
-    }
-
     h1 {
         font-size: 28px;
-    }
-
-    .subtitle {
-        font-size: 16px;
     }
 
     .form-input {
@@ -410,10 +330,6 @@ h3 {
 
     .submit-btn {
         padding: 12px 16px;
-    }
-
-    .password-requirements {
-        padding: 15px;
     }
 
     .password-requirements li {

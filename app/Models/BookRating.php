@@ -26,7 +26,9 @@ class BookRating extends Model
     protected function casts(): array
     {
         return [
-            'rating' => 'integer'
+            'rating' => 'integer',
+            'created_at' => 'datetime',
+            'updated_at' => 'datetime',
         ];
     }
 

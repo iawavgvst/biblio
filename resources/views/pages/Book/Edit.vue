@@ -104,11 +104,12 @@
                         <div class="stats-grid">
                             <div class="stat-item">
                                 <span class="stat-label">Average Rating:</span>
-                                <span class="stat-value">{{ book.rating ? book.rating.toFixed(1) : 'N/A' }} ⭐</span>
+                                <span class="stat-value">{{ book.average_rating ? Number(book.average_rating).toFixed(1) : 'N/A' }}<font-awesome-icon
+                                    icon="star"/></span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">Total Ratings:</span>
-                                <span class="stat-value">{{ book.rating_count || 0 }}</span>
+                                <span class="stat-value">{{ book.ratings_count || 0 }}</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">Created:</span>
@@ -140,6 +141,7 @@ import { ref, computed } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import App from '../../layouts/App.vue';
 import { SFormRow } from "startup-ui";
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
 const props = defineProps({
     book: {

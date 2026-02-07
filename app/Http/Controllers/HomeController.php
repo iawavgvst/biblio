@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Admin\User\UserUpdateRequest;
 use App\Http\Requests\Book\BookStoreRequest;
 use App\Http\Requests\Book\BookUpdateRequest;
 use App\Models\Book;
 use App\Models\BookRating;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -22,20 +24,28 @@ class HomeController extends Controller
     {
         Gate::authorize('viewAny', Book::class);
 
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user ? $user->id : null;
 
-        $books = Book::with(['user:id,name'])
-            ->withAvg('ratings', 'rating')
+        $books = Book::query()
+            ->with(['user', 'ratings'])
             ->withCount('ratings')
-            ->latest()
+            ->selectRaw('books.*')
+            ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($book) use ($userId) {
                 $userRating = null;
+                $hasRated = false;
+
                 if ($userId) {
-                    $rating = $book->ratings()
-                        ->where('user_id', $userId)
+                    $rating = BookRating::where('user_id', $userId)
+                        ->where('book_id', $book->id)
                         ->first();
-                    $userRating = $rating ? $rating->rating : null;
+
+                    if ($rating) {
+                        $userRating = $rating->rating;
+                        $hasRated = true;
+                    }
                 }
 
                 return [
@@ -45,28 +55,34 @@ class HomeController extends Controller
                     'description' => $book->description,
                     'genre' => $book->genre,
                     'cover' => $book->cover,
-                    'is18Plus' => $book->is18Plus,
-                    'rating' => (float) $book->ratings_avg_rating ?? 0,
-                    'rating_count' => $book->ratings_count ?? 0,
-                    'user_rating' => $userRating, // Оценка текущего пользователя
-                    'has_rated' => $userRating !== null,
-                    'user' => $book->user,
+                    'is18Plus' => (bool)$book->is18Plus,
+                    'average_rating' => (float)$book->average_rating,
+                    'ratings_count' => $book->ratings_count,
+                    'rating' => (float)$book->average_rating,
+                    'rating_count' => $book->ratings_count,
                     'user_id' => $book->user_id,
                     'created_at' => $book->created_at,
+                    'updated_at' => $book->updated_at,
+                    'has_rated' => $hasRated,
+                    'user_rating' => $userRating, // null если пользователь не голосовал
+                    'user' => $book->user ? [
+                        'id' => $book->user->id,
+                        'name' => $book->user->name,
+                        'email' => $book->user->email,
+                    ] : null,
                 ];
             });
 
         return Inertia::render('Home', [
             'books' => $books,
-            'canCreate' => Auth::check(),
             'auth' => [
-                'user' => Auth::user() ? [
-                    'id' => Auth::user()->id,
-                    'name' => Auth::user()->name,
-                    'email' => Auth::user()->email,
-                    'role' => Auth::user()->role,
-                ] : null
-            ]
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                ] : null,
+            ],
         ]);
     }
 
@@ -160,29 +176,36 @@ class HomeController extends Controller
     {
         Gate::authorize('rate', $book);
 
-        $request->validate([
-            'rating' => 'required|integer|min:1|max:5'
+        $user = Auth::user();
+
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
         ]);
 
-        if (!Auth::check()) {
-            return redirect()->back()->with('error', 'Please login to rate books');
-        }
+        $existingRating = BookRating::where('user_id', $user->id)
+            ->where('book_id', $book->id)
+            ->first();
 
-        if ($book->user_id === Auth::id()) {
-            return redirect()->back()->with('error', 'You cannot rate your own book');
-        }
-
-        BookRating::updateOrCreate(
-            [
-                'user_id' => Auth::id(),
+        if ($existingRating) {
+            $existingRating->update(['rating' => $validated['rating']]);
+        } else {
+            BookRating::query()->create([
+                'user_id' => $user->id,
                 'book_id' => $book->id,
-            ],
-            ['rating' => $request->rating]
-        );
+                'rating' => $validated['rating'],
+            ]);
+        }
 
-        $book->updateRatingStats();
+        $ratings = BookRating::query()->where('book_id', $book->id)->get();
+        $averageRating = $ratings->avg('rating');
+        $ratingsCount = $ratings->count();
 
-        return redirect()->back()->with('success', 'Rating saved!');
+        $book->update([
+            'average_rating' => $averageRating ?? 0,
+            'ratings_count' => $ratingsCount,
+        ]);
+
+        return redirect()->route('home');
     }
 
     /**
@@ -192,13 +215,31 @@ class HomeController extends Controller
      */
     public function myBooks()
     {
+        $user = Auth::user();
+
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
         $books = Book::query()
-            ->where('user_id', Auth::id())
-            ->withAvg('ratings', 'rating')
+            ->with(['user', 'ratings'])
             ->withCount('ratings')
+            ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get()
-            ->map(function ($book) {
+            ->map(function ($book) use ($user) {
+                $userRating = null;
+                $hasRated = false;
+
+                $rating = BookRating::where('user_id', $user->id)
+                    ->where('book_id', $book->id)
+                    ->first();
+
+                if ($rating) {
+                    $userRating = $rating->rating;
+                    $hasRated = true;
+                }
+
                 return [
                     'id' => $book->id,
                     'title' => $book->title,
@@ -206,17 +247,64 @@ class HomeController extends Controller
                     'description' => $book->description,
                     'genre' => $book->genre,
                     'cover' => $book->cover,
-                    'is18Plus' => $book->is18Plus,
-                    'rating' => $book->average_rating ?? 0,
+                    'is18Plus' => (bool)$book->is18Plus,
+                    'average_rating' => (float)$book->average_rating,
+                    'ratings_count' => $book->ratings_count,
+                    'rating' => (float)$book->average_rating,
                     'rating_count' => $book->ratings_count,
-                    'created_at' => $book->created_at->format('d.m.Y'),
-                    'updated_at' => $book->updated_at->format('d.m.Y'),
+                    'user_id' => $book->user_id,
+                    'created_at' => $book->created_at,
+                    'updated_at' => $book->updated_at,
+                    'has_rated' => $hasRated,
+                    'user_rating' => $userRating,
+                    'user' => $book->user ? [
+                        'id' => $book->user->id,
+                        'name' => $book->user->name,
+                        'email' => $book->user->email,
+                    ] : null,
                 ];
             });
 
         return Inertia::render('Book/Profile', [
             'books' => $books,
-            'user' => Auth::user(),
+            'auth' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                ],
+            ],
         ]);
+    }
+
+    /**
+     * Обновление данных профиля
+     *
+     * Метод PUT: /profile
+     */
+    public function profileUpdate(UserUpdateRequest $request, User $user)
+    {
+        $user = auth()->user();
+
+        Gate::authorize('update', $user);
+
+        $data = $request->validated();
+
+        $emailChanged = $request->filled('email') && $data['email'] !== $user->email;
+
+        $user->update($data);
+
+        if ($emailChanged) {
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')
+                ->with('status', 'Email updated. Please login with your new email.');
+        }
+
+        return redirect()->route('profile.mybooks');
     }
 }

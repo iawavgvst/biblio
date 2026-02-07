@@ -33,6 +33,7 @@ Route::group(['middleware' => 'auth'], function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/profile', [HomeController::class, 'myBooks'])->name('profile.mybooks');
+    Route::put('/profile', [HomeController::class, 'profileUpdate'])->name('profile.update');
 
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/books/create', [HomeController::class, 'create'])->name('books.create');
